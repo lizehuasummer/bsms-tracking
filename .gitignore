@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+__pycache__/
+*.pyc
+.DS_Store
+*.tmp
+*.old
+BSMS功能点追踪_tracking_2026.xlsx
+进度表.xlsx
+查所有的issue的 activity.docx

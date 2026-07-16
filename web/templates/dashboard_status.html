@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}BSMS - 每日状态变化{% endblock %}
+{% block content %}
+<div class="page-title"><i class="fas fa-exchange-alt me-2"></i>每日状态变化</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-auto">
+        <select id="rangeSelect" class="form-select" onchange="loadCharts()">
+            <option value="7">近 7 天</option>
+            <option value="30" selected>近 30 天</option>
+            <option value="90">近 90 天</option>
+            <option value="181">全部</option>
+        </select>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card"><div class="card-header">Bug 状态变化</div><div class="card-body"><canvas id="chartBug" height="220"></canvas></div></div>
+    </div>
+    <div class="col-md-6">
+        <div class="card"><div class="card-header">功能点状态变化</div><div class="card-body"><canvas id="chartFunc" height="220"></canvas></div></div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">每日明细（最近 30 天）</div>
+    <div class="card-body p-0">
+        <div class="table-responsive"><table class="table table-sm table-hover mb-0" id="statusTable">
+            <thead><tr><th>日期</th><th>Bug-Open</th><th>Bug-待修复</th><th>Bug-测试中</th><th>Bug-其他</th><th>Bug-Closed</th><th>Bug-已完成</th><th>Func-Open</th><th>Func-待开发</th><th>Func-开发中</th><th>Func-测试中</th><th>Func-Closed</th><th>Func-已完成</th><th>Process::pass</th></tr></thead>
+            <tbody id="statusTableBody"></tbody>
+        </table></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function loadCharts() {
+    var days = $('#rangeSelect').val();
+    $.getJSON('/api/dashboard/status?days='+days, function(d) {
+        var items = d.items.reverse();
+        var labels = items.map(function(x) { return x.date; });
+
+        new Chart(document.getElementById('chartBug'), { type: 'line', data: {
+            labels: labels,
+            datasets: [
+                { label: 'Bug Open 合计', data: items.map(function(x) { return x.bug_open_total; }), borderColor: '#f56565', fill: false },
+                { label: 'Bug Closed 合计', data: items.map(function(x) { return x.bug_closed_total; }), borderColor: '#48bb78', fill: false },
+                { label: '待修复', data: items.map(function(x) { return x.bug_open_fix; }), borderColor: '#ed8936', fill: false },
+            ]
+        }, options: { responsive: true, plugins: { legend: { position: 'bottom' } } } });
+
+        new Chart(document.getElementById('chartFunc'), { type: 'line', data: {
+            labels: labels,
+            datasets: [
+                { label: 'Func Open 合计', data: items.map(function(x) { return x.func_open_total; }), borderColor: '#4299e1', fill: false },
+                { label: 'Func Closed 合计', data: items.map(function(x) { return x.func_closed_total; }), borderColor: '#48bb78', fill: false },
+                { label: '待开发', data: items.map(function(x) { return x.func_open_dev; }), borderColor: '#ed8936', fill: false },
+                { label: 'Process::pass', data: items.map(function(x) { return x.func_open_pass; }), borderColor: '#9f7aea', fill: false },
+            ]
+        }, options: { responsive: true, plugins: { legend: { position: 'bottom' } } } });
+
+        var tbody = $('#statusTableBody').empty();
+        items.slice(-30).reverse().forEach(function(x) {
+            tbody.append('<tr><td>'+x.date+'</td><td>'+x.bug_open_total+'</td><td>'+x.bug_open_fix+'</td><td>'+x.bug_open_test+'</td><td>'+x.bug_open_other+'</td><td>'+x.bug_closed_total+'</td><td>'+x.bug_closed_done+'</td><td>'+x.func_open_total+'</td><td>'+x.func_open_dev+'</td><td>'+x.func_open_deving+'</td><td>'+x.func_open_testing+'</td><td>'+x.func_closed_total+'</td><td>'+x.func_closed_done+'</td><td>'+x.func_open_pass+'</td></tr>');
+        });
+    });
+}
+loadCharts();
+</script>
+{% endblock %}

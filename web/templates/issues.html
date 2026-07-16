@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}BSMS - Issue 列表{% endblock %}
+{% block content %}
+<div class="page-title"><i class="fas fa-list me-2"></i>Issue 列表</div>
+<div class="card">
+    <div class="card-header">
+        <div class="row g-2 align-items-center">
+            <div class="col-md-3">
+                <select id="filterState" class="form-select">
+                    <option value="">全部状态</option>
+                    <option value="opened">Open</option>
+                    <option value="closed">Closed</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select id="filterSystem" class="form-select"><option value="">全部系统</option></select>
+            </div>
+            <div class="col-md-4">
+                <input id="searchText" class="form-control" placeholder="搜索标题或 IID...">
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-primary w-100" onclick="loadIssues()"><i class="fas fa-search"></i> 搜索</button>
+            </div>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" id="issueTable">
+            <thead><tr><th>IID</th><th>系统</th><th>标题</th><th>状态</th><th>优先级</th><th>负责人</th><th>创建时间</th></tr></thead>
+            <tbody id="issueBody"></tbody>
+        </table>
+    </div>
+    <div class="card-footer d-flex justify-content-between align-items-center">
+        <span id="pageInfo" class="text-muted"></span>
+        <nav><ul class="pagination pagination-sm mb-0" id="pagination"></ul></nav>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var currentPage = 1;
+
+$.getJSON('/api/systems', function(d) {
+    d.systems.forEach(function(s) {
+        $('#filterSystem').append('<option value="'+s+'">'+s+'</option>');
+    });
+});
+
+function loadIssues() {
+    var state = $('#filterState').val();
+    var system = $('#filterSystem').val();
+    var search = $('#searchText').val();
+    $.getJSON('/api/issues', {page: currentPage, per_page: 50, state: state, system: system, search: search}, function(d) {
+        var tbody = $('#issueBody').empty();
+        d.items.forEach(function(i) {
+            var statusClass = i.state === 'closed' ? 'badge-closed' : 'badge-open';
+            tbody.append('<tr><td><a href="'+i.web_url+'" target="_blank">#'+i.iid+'</a></td><td>'+i.system+'</td><td>'+i.title+'</td><td><span class="badge '+statusClass+'">'+i.state+'</span></td><td>'+i.priority+'</td><td>'+i.assignee+'</td><td>'+(i.created_at||'').substring(0,10)+'</td></tr>');
+        });
+        $('#pageInfo').text('共 '+d.total+' 条，第 '+d.page+'/'+Math.ceil(d.total/d.per_page)+' 页');
+        renderPagination(d.total, d.page, d.per_page);
+    });
+}
+
+function renderPagination(total, page, perPage) {
+    var totalPages = Math.ceil(total / perPage);
+    var html = '';
+    if (page > 1) html += '<li class="page-item"><a class="page-link" href="#" onclick="goPage('+(page-1)+')">&laquo;</a></li>';
+    for (var p = Math.max(1, page-2); p <= Math.min(totalPages, page+2); p++) {
+        html += '<li class="page-item '+(p===page?'active':'')+'"><a class="page-link" href="#" onclick="goPage('+p+')">'+p+'</a></li>';
+    }
+    if (page < totalPages) html += '<li class="page-item"><a class="page-link" href="#" onclick="goPage('+(page+1)+')">&raquo;</a></li>';
+    $('#pagination').html(html);
+}
+
+function goPage(p) { currentPage = p; loadIssues(); }
+
+loadIssues();
+</script>
+{% endblock %}

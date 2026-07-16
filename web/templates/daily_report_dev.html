@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}BSMS - 技术工作日报{% endblock %}
+{% block content %}
+<div class="page-title"><i class="fas fa-file-alt me-2"></i>技术工作日报（填报）</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-auto">
+        <input id="datePicker" type="date" class="form-control" onchange="loadReport()">
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header" id="reportHeader">加载中...</div>
+    <div class="card-body p-0">
+        <div class="table-responsive"><table class="table table-sm table-hover mb-0">
+            <thead><tr><th>IID</th><th>系统</th><th>功能模块</th><th>详细功能点</th><th>开发计划</th><th>开发人员</th><th>前端完成</th><th>后端完成</th></tr></thead>
+            <tbody id="reportBody"></tbody>
+        </table></div>
+    </div>
+    <div class="card-footer d-flex justify-content-between align-items-center">
+        <span id="pageInfo" class="text-muted"></span>
+        <nav><ul class="pagination pagination-sm mb-0" id="pagination"></ul></nav>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var currentPage = 1;
+var currentDate = '';
+
+// Set default date to latest available
+$.getJSON('/api/daily-report/dev?per_page=1', function(d) {
+    if (d.items.length > 0) {
+        currentDate = d.items[0].date;
+        $('#datePicker').val(currentDate);
+        loadReport();
+    }
+});
+
+$('#datePicker').on('change', function() {
+    currentDate = $(this).val();
+    currentPage = 1;
+    loadReport();
+});
+
+function loadReport() {
+    if (!currentDate) return;
+    $.getJSON('/api/daily-report/dev', {date: currentDate, page: currentPage, per_page: 50}, function(d) {
+        var tbody = $('#reportBody').empty();
+        d.items.forEach(function(i) {
+            tbody.append('<tr><td>#'+i.iid+'</td><td>'+i.system+'</td><td>'+i.func_module+'</td><td>'+i.detail_module+'</td><td>'+i.dev_plan+'</td><td>'+i.dev_user+'</td><td>'+i.front_user+'</td><td>'+i.backend_user+'</td></tr>');
+        });
+        $('#reportHeader').text('技术工作日报 — ' + currentDate + '（共 ' + d.total + ' 条）');
+        $('#pageInfo').text('第 ' + d.page + '/' + Math.ceil(d.total/d.per_page) + ' 页');
+        var tp = Math.ceil(d.total/d.per_page);
+        var html = '';
+        if (d.page > 1) html += '<li class="page-item"><a class="page-link" href="#" onclick="goPage('+(d.page-1)+')">&laquo;</a></li>';
+        for (var p = Math.max(1, d.page-2); p <= Math.min(tp, d.page+2); p++)
+            html += '<li class="page-item '+(p===d.page?'active':'')+'"><a class="page-link" href="#" onclick="goPage('+p+')">'+p+'</a></li>';
+        if (d.page < tp) html += '<li class="page-item"><a class="page-link" href="#" onclick="goPage('+(d.page+1)+')">&raquo;</a></li>';
+        $('#pagination').html(html);
+    });
+}
+
+function goPage(p) { currentPage = p; loadReport(); }
+</script>
+{% endblock %}

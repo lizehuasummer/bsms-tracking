@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}BSMS - 开发每日汇总看板{% endblock %}
+{% block content %}
+<div class="page-title"><i class="fas fa-laptop-code me-2"></i>开发每日汇总看板</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-auto">
+        <select id="rangeSelect" class="form-select" onchange="loadCharts()">
+            <option value="7">近 7 天</option>
+            <option value="30" selected>近 30 天</option>
+            <option value="90">近 90 天</option>
+            <option value="181">全部</option>
+        </select>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card"><div class="card-header">功能点趋势</div><div class="card-body"><canvas id="chartFunc" height="220"></canvas></div></div>
+    </div>
+    <div class="col-md-6">
+        <div class="card"><div class="card-header">功能点状态分布</div><div class="card-body"><canvas id="chartFuncState" height="220"></canvas></div></div>
+    </div>
+</div>
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card"><div class="card-header">每日新增/完成</div><div class="card-body"><canvas id="chartDaily" height="200"></canvas></div></div>
+    </div>
+    <div class="col-md-6">
+        <div class="card"><div class="card-header">Bug 状态</div><div class="card-body"><canvas id="chartBugDev" height="200"></canvas></div></div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">每日明细（最近 30 天）</div>
+    <div class="card-body p-0">
+        <div class="table-responsive"><table class="table table-sm table-hover mb-0" id="devTable">
+            <thead><tr><th>日期</th><th>新增</th><th>前端完成</th><th>后端完成</th><th>提测</th><th>联调测试</th><th>已提测合计</th><th>完成率%</th><th>功能点总数</th><th>已完成</th><th>待开发</th><th>开发中</th><th>测试中</th></tr></thead>
+            <tbody id="devTableBody"></tbody>
+        </table></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function loadCharts() {
+    var days = $('#rangeSelect').val();
+    $.getJSON('/api/dashboard/dev?days='+days, function(d) {
+        var items = d.items.reverse();
+        var labels = items.map(function(x) { return x.date; });
+        // Func trend
+        new Chart(document.getElementById('chartFunc'), { type: 'line', data: {
+            labels: labels,
+            datasets: [
+                { label: '功能点总数', data: items.map(function(x) { return x.func_all; }), borderColor: '#4299e1', fill: false },
+                { label: '已完成', data: items.map(function(x) { return x.func_done; }), borderColor: '#48bb78', fill: false },
+                { label: '待开发', data: items.map(function(x) { return x.func_dev; }), borderColor: '#ed8936', fill: false },
+                { label: '开发中', data: items.map(function(x) { return x.func_deving; }), borderColor: '#9f7aea', fill: false },
+                { label: '测试中', data: items.map(function(x) { return x.func_testing; }), borderColor: '#f6ad55', fill: false },
+            ]
+        }, options: { responsive: true, plugins: { legend: { position: 'bottom' } } } });
+
+        // Func state distribution (last day)
+        var last = items[items.length-1];
+        new Chart(document.getElementById('chartFuncState'), { type: 'doughnut', data: {
+            labels: ['待开发', '开发中', '测试中', '已完成'],
+            datasets: [{ data: [last.func_dev, last.func_deving, last.func_testing, last.func_done], backgroundColor: ['#ed8936','#9f7aea','#f6ad55','#48bb78'] }]
+        }, options: { responsive: true, plugins: { legend: { position: 'bottom' } } } });
+
+        // Daily new/done
+        new Chart(document.getElementById('chartDaily'), { type: 'bar', data: {
+            labels: labels,
+            datasets: [
+                { label: '新增', data: items.map(function(x) { return x.b; }), backgroundColor: '#4299e1' },
+                { label: '提测', data: items.map(function(x) { return x.e; }), backgroundColor: '#ed8936' },
+                { label: '完成', data: items.map(function(x) { return x.g; }), backgroundColor: '#48bb78' },
+            ]
+        }, options: { responsive: true, plugins: { legend: { position: 'bottom' } } } });
+
+        // Bug dev
+        new Chart(document.getElementById('chartBugDev'), { type: 'line', data: {
+            labels: labels,
+            datasets: [
+                { label: 'Bug 待修复', data: items.map(function(x) { return x.o; }), borderColor: '#f56565', fill: false },
+                { label: 'Bug 当日关闭', data: items.map(function(x) { return x.r; }), borderColor: '#48bb78', fill: false },
+            ]
+        }, options: { responsive: true, plugins: { legend: { position: 'bottom' } } } });
+
+        // Table
+        var tbody = $('#devTableBody').empty();
+        items.slice(-30).reverse().forEach(function(x) {
+            tbody.append('<tr><td>'+x.date+'</td><td>'+(x.b||0)+'</td><td>'+(x.c||0)+'</td><td>'+(x.d||0)+'</td><td>'+(x.e||0)+'</td><td>'+(x.g||0)+'</td><td>'+(x.g||0)+'</td><td>'+(x.h||0)+'</td><td>'+x.func_all+'</td><td>'+x.func_done+'</td><td>'+x.func_dev+'</td><td>'+x.func_deving+'</td><td>'+x.func_testing+'</td></tr>');
+        });
+    });
+}
+loadCharts();
+</script>
+{% endblock %}

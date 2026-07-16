@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}BSMS 项目跟踪看板 - 首页{% endblock %}
+{% block content %}
+<div class="page-title"><i class="fas fa-home me-2"></i>首页概览</div>
+
+<div class="row g-3 mb-4" id="statsRow"></div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header"><i class="fas fa-laptop-code me-2"></i>开发汇总（最新）</div>
+            <div class="card-body" id="devSummary">加载中...</div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header"><i class="fas fa-vial me-2"></i>测试汇总（最新）</div>
+            <div class="card-body" id="testSummary">加载中...</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header"><i class="fas fa-chart-bar me-2"></i>开发趋势（近30天）</div>
+            <div class="card-body"><canvas id="devChart" height="250"></canvas></div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header"><i class="fas fa-chart-bar me-2"></i>测试趋势（近30天）</div>
+            <div class="card-body"><canvas id="testChart" height="250"></canvas></div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><i class="fas fa-info-circle me-2"></i>数据状态</div>
+    <div class="card-body" id="metaInfo">加载中...</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function loadStats() {
+    $.getJSON('/api/stats', function(d) {
+        $('#statsRow').html([
+            '<div class="col-md-3"><div class="stat-card text-center"><div class="stat-num text-primary">'+d.total_issues+'</div><div class="stat-label">Issue 总数</div></div></div>',
+            '<div class="col-md-3"><div class="stat-card text-center"><div class="stat-num text-success">'+d.closed_issues+'</div><div class="stat-label">已完成</div></div></div>',
+            '<div class="col-md-3"><div class="stat-card text-center"><div class="stat-num text-warning">'+d.open_issues+'</div><div class="stat-label">进行中</div></div></div>',
+            '<div class="col-md-3"><div class="stat-card text-center"><div class="stat-num text-danger">'+d.open_bugs+'</div><div class="stat-label">Bug 待修复</div></div></div>',
+        ].join(''));
+
+        if (d.latest_dev) {
+            var dv = d.latest_dev;
+            $('#devSummary').html(
+                '<div class="row text-center"><div class="col-4"><div class="stat-num text-primary">'+dv.func_all+'</div><div>功能点总数</div></div>' +
+                '<div class="col-4"><div class="stat-num text-success">'+dv.func_done+'</div><div>已完成</div></div>' +
+                '<div class="col-4"><div class="stat-num text-warning">'+(dv.func_open_total)+'</div><div>开发中</div></div></div>' +
+                '<hr><small class="text-muted">日期: '+dv.date+' | 完成率: '+dv.h+'% | 待开发: '+dv.func_dev+' | 开发中: '+dv.func_deving+' | 测试中: '+dv.func_testing+'</small>'
+            );
+        }
+        if (d.latest_test) {
+            var tv = d.latest_test;
+            $('#testSummary').html(
+                '<div class="row text-center"><div class="col-4"><div class="stat-num text-danger">'+tv.bug_all+'</div><div>Bug 总数</div></div>' +
+                '<div class="col-4"><div class="stat-num text-success">'+tv.bug_done+'</div><div>已关闭</div></div>' +
+                '<div class="col-4"><div class="stat-num text-warning">'+tv.bug_open_fix+'</div><div>待修复</div></div></div>' +
+                '<hr><small class="text-muted">日期: '+tv.date+' | 测试中: '+tv.bug_open_test+' | 开放中: '+(tv.bug_open_total - tv.bug_open_fix - tv.bug_open_test)+'</small>'
+            );
+        }
+    });
+}
+
+function loadCharts() {
+    $.getJSON('/api/dashboard/dev?days=30', function(d) {
+        var labels = d.items.map(function(x) { return x.date; }).reverse();
+        var datasets = [
+            { label: '功能点总数', data: d.items.map(function(x) { return x.func_all; }).reverse(), borderColor: '#4299e1', fill: false },
+            { label: '已完成', data: d.items.map(function(x) { return x.func_done; }).reverse(), borderColor: '#48bb78', fill: false },
+            { label: '待开发', data: d.items.map(function(x) { return x.func_dev; }).reverse(), borderColor: '#ed8936', fill: false },
+            { label: '测试中', data: d.items.map(function(x) { return x.func_testing; }).reverse(), borderColor: '#9f7aea', fill: false },
+        ];
+        new Chart(document.getElementById('devChart'), { type: 'line', data: { labels: labels, datasets: datasets }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
+    });
+
+    $.getJSON('/api/dashboard/test?days=30', function(d) {
+        var labels = d.items.map(function(x) { return x.date; }).reverse();
+        var datasets = [
+            { label: 'Bug 总数', data: d.items.map(function(x) { return x.bug_all; }).reverse(), borderColor: '#f56565', fill: false },
+            { label: '已关闭', data: d.items.map(function(x) { return x.bug_done; }).reverse(), borderColor: '#48bb78', fill: false },
+            { label: '待修复', data: d.items.map(function(x) { return x.bug_open_fix; }).reverse(), borderColor: '#ed8936', fill: false },
+        ];
+        new Chart(document.getElementById('testChart'), { type: 'line', data: { labels: labels, datasets: datasets }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
+    });
+}
+
+function loadMeta() {
+    $.getJSON('/api/refresh-meta', function(d) {
+        $('#metaInfo').html(
+            '<table class="table table-sm mb-0" style="max-width:400px"><tr><td>数据日期范围</td><td>'+d.date_range+'</td></tr>' +
+            '<tr><td>Issue 总数</td><td>'+d.total_issues+'</td></tr>' +
+            '<tr><td>Bug 总数</td><td>'+d.total_bugs+'</td></tr>' +
+            '<tr><td>数据库更新</td><td>'+d.db_updated+'</td></tr></table>'
+        );
+    });
+}
+
+loadStats(); loadCharts(); loadMeta();
+</script>
+{% endblock %}

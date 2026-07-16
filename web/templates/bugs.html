@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}BSMS - Bug 列表{% endblock %}
+{% block content %}
+<div class="page-title"><i class="fas fa-bug me-2"></i>Bug 列表</div>
+<div class="card">
+    <div class="card-header">
+        <div class="row g-2">
+            <div class="col-md-3">
+                <select id="filterState" class="form-select">
+                    <option value="">全部状态</option>
+                    <option value="opened">Open</option>
+                    <option value="closed">Closed</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-primary w-100" onclick="loadBugs()"><i class="fas fa-search"></i> 刷新</button>
+            </div>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead><tr><th>IID</th><th>系统</th><th>标题</th><th>优先级</th><th>状态</th><th>创建时间</th><th>负责人</th></tr></thead>
+            <tbody id="bugBody"></tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function loadBugs() {
+    var state = $('#filterState').val();
+    $.getJSON('/api/bugs' + (state ? '?state='+state : ''), function(d) {
+        var tbody = $('#bugBody').empty();
+        d.items.forEach(function(i) {
+            var statusClass = i.state === 'closed' ? 'badge-closed' : (i.priority === 'P0' ? 'badge-fix' : 'badge-open');
+            tbody.append('<tr><td>#'+i.iid+'</td><td>'+i.system+'</td><td>'+i.title+'</td><td>'+i.priority+'</td><td><span class="badge '+statusClass+'">'+i.state+'</span></td><td>'+(i.created_at||'').substring(0,10)+'</td><td>'+i.assignee+'</td></tr>');
+        });
+    });
+}
+loadBugs();
+</script>
+{% endblock %}

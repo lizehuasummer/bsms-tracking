@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}BSMS - 测试每日汇总看板{% endblock %}
+{% block content %}
+<div class="page-title"><i class="fas fa-vial me-2"></i>测试每日汇总看板</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-auto">
+        <select id="rangeSelect" class="form-select" onchange="loadCharts()">
+            <option value="7">近 7 天</option>
+            <option value="30" selected>近 30 天</option>
+            <option value="90">近 90 天</option>
+            <option value="181">全部</option>
+        </select>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card"><div class="card-header">Bug 趋势</div><div class="card-body"><canvas id="chartBug" height="220"></canvas></div></div>
+    </div>
+    <div class="col-md-6">
+        <div class="card"><div class="card-header">Bug 状态分布</div><div class="card-body"><canvas id="chartBugState" height="220"></canvas></div></div>
+    </div>
+</div>
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card"><div class="card-header">新增/关闭 Bug</div><div class="card-body"><canvas id="chartBugDaily" height="200"></canvas></div></div>
+    </div>
+    <div class="col-md-6">
+        <div class="card"><div class="card-header">优先级分布</div><div class="card-body"><canvas id="chartPriority" height="200"></canvas></div></div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">每日明细（最近 30 天）</div>
+    <div class="card-body p-0">
+        <div class="table-responsive"><table class="table table-sm table-hover mb-0" id="testTable">
+            <thead><tr><th>日期</th><th>Bug 总数</th><th>待修复</th><th>测试中</th><th>已关闭</th><th>当日提测</th><th>当日完成</th><th>当日新增优先级</th></tr></thead>
+            <tbody id="testTableBody"></tbody>
+        </table></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function loadCharts() {
+    var days = $('#rangeSelect').val();
+    $.getJSON('/api/dashboard/test?days='+days, function(d) {
+        var items = d.items.reverse();
+        var labels = items.map(function(x) { return x.date; });
+
+        new Chart(document.getElementById('chartBug'), { type: 'line', data: {
+            labels: labels,
+            datasets: [
+                { label: 'Bug 总数', data: items.map(function(x) { return x.bug_all; }), borderColor: '#f56565', fill: false },
+                { label: '已关闭', data: items.map(function(x) { return x.bug_done; }), borderColor: '#48bb78', fill: false },
+                { label: '待修复', data: items.map(function(x) { return x.bug_open_fix; }), borderColor: '#ed8936', fill: false },
+            ]
+        }, options: { responsive: true, plugins: { legend: { position: 'bottom' } } } });
+
+        var last = items[items.length-1];
+        new Chart(document.getElementById('chartBugState'), { type: 'doughnut', data: {
+            labels: ['待修复', '测试中', '其他', '已关闭'],
+            datasets: [{ data: [last.bug_open_fix, last.bug_open_test, Math.max(0,last.bug_open_total-last.bug_open_fix-last.bug_open_test), last.bug_done], backgroundColor: ['#f56565','#ed8936','#a0aec0','#48bb78'] }]
+        }, options: { responsive: true, plugins: { legend: { position: 'bottom' } } } });
+
+        new Chart(document.getElementById('chartBugDaily'), { type: 'bar', data: {
+            labels: labels,
+            datasets: [
+                { label: '当日提测', data: items.map(function(x) { return x.b; }), backgroundColor: '#4299e1' },
+                { label: '当日完成', data: items.map(function(x) { return x.c; }), backgroundColor: '#48bb78' },
+            ]
+        }, options: { responsive: true, plugins: { legend: { position: 'bottom' } } } });
+
+        var pData = [last.e, last.f, last.g, last.h, last.i];
+        new Chart(document.getElementById('chartPriority'), { type: 'doughnut', data: {
+            labels: ['P0 ('+last.e+')', 'P1 ('+last.f+')', 'P2 ('+last.g+')', 'P3 ('+last.h+')', 'P4 ('+last.i+')'],
+            datasets: [{ data: [last.e, last.f, last.g, last.h, last.i], backgroundColor: ['#f56565','#ed8936','#ecc94b','#48bb78','#a0aec0'] }]
+        }, options: { responsive: true, plugins: { legend: { position: 'bottom' } } } });
+
+        var tbody = $('#testTableBody').empty();
+        items.slice(-30).reverse().forEach(function(x) {
+            tbody.append('<tr><td>'+x.date+'</td><td>'+x.bug_all+'</td><td>'+x.bug_open_fix+'</td><td>'+x.bug_open_test+'</td><td>'+x.bug_done+'</td><td>'+(x.b||0)+'</td><td>'+(x.c||0)+'</td><td>'+(x.j||0)+'</td></tr>');
+        });
+    });
+}
+loadCharts();
+</script>
+{% endblock %}
