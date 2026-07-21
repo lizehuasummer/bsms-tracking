@@ -646,6 +646,9 @@ def main():
 
     print(f"\n  总计: {len(all_issues)}, Function::dev: {len(func_issues)}, Bug::dev: {len(bug_issues)}, Notes: {len(notes_cache)}")
 
+    # 更新 Excel 4 个 Sheet + 日报
+    step3_fill_excel(all_issues, func_issues, bug_issues, notes_cache)
+
 def _generate_tech_daily(wb, func_issues, notes_cache):
     """技术工作日报（填报）：按 issue Activity 逐日填充"""
     from collections import defaultdict
