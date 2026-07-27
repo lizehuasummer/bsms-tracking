@@ -273,14 +273,15 @@ def stage_status(latest_status, current_labels):
     """Map gitlab status to 5-stage progressive status."""
     if latest_status is None:
         return "待开发"
-    if latest_status == "开发中":
-        return "开发中"
-    if latest_status == "测试中":
-        if "Process::pass" in current_labels:
-            return "processpass"
-        return "测试中"
     if latest_status == "已完成":
         return "已完成"
+    # Process::pass overrides any non-已完成 status
+    if "Process::pass" in current_labels:
+        return "processpass"
+    if latest_status == "测试中":
+        return "测试中"
+    if latest_status == "开发中":
+        return "开发中"
     return latest_status
 
 
