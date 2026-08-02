@@ -288,13 +288,13 @@ def stage_status(latest_status, current_labels):
 def step3_fill_excel(all_issues, func_issues, bug_issues, notes_cache):
     print("[3] 填写 4 个 Sheet...")
 
-    # ---- 预处理：功能点编号索引
+    # ---- 预处理：功能点编号索引（用 all_issues，覆盖已关闭/移除 Function::dev 标签的功能点）
     func_by_fid = {}
-    for issue in func_issues:
+    for issue in all_issues:
         fid = extract_feature_id(issue.get("title", ""))
         if fid:
             func_by_fid.setdefault(fid, []).append(issue)
-    print(f"  Function::dev 功能点编号: {len(func_by_fid)} 个")
+    print(f"  功能点编号索引: {len(func_by_fid)} 个")
 
     wb = openpyxl.load_workbook(EXCEL_PATH)
 
@@ -420,8 +420,10 @@ def step3_fill_excel(all_issues, func_issues, bug_issues, notes_cache):
             if sprint_label:
                 ws1.cell(row, 8).value = f"sprint{sprint_label}"
 
-            # J 列: 5 阶段渐进状态（若gitlab已closed则视为已完成）
-            if matched_issue.get("state") == "closed":
+            # J 列: 5 阶段渐进状态（Process::pass 优先；closed 视为已完成）
+            if "Process::pass" in current_labels:
+                display_status = "processpass"
+            elif matched_issue.get("state") == "closed":
                 display_status = "已完成"
             else:
                 latest_status = status_changes[-1]["status"] if status_changes else None
@@ -513,8 +515,10 @@ def step3_fill_excel(all_issues, func_issues, bug_issues, notes_cache):
             if sprint_label:
                 ws2.cell(row, 8).value = f"sprint{sprint_label}"
 
-            # J 列: 5 阶段渐进状态
-            if matched_issue.get("state") == "closed":
+            # J 列: 5 阶段渐进状态（Process::pass 优先；closed 视为已完成）
+            if "Process::pass" in current_labels:
+                display_status = "processpass"
+            elif matched_issue.get("state") == "closed":
                 display_status = "已完成"
             else:
                 latest_status = status_changes[-1]["status"] if status_changes else None
